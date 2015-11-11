@@ -1,4 +1,153 @@
-(function(d){d.extend(d.inputmask.defaults.definitions,{A:{validator:"[A-Za-z]",cardinality:1,casing:"upper"},"#":{validator:"[A-Za-z\u0410-\u044f\u0401\u04510-9]",cardinality:1,casing:"upper"}});d.extend(d.inputmask.defaults.aliases,{url:{mask:"ir",placeholder:"",separator:"",defaultPrefix:"http://",regex:{urlpre1:/[fh]/,urlpre2:/(ft|ht)/,urlpre3:/(ftp|htt)/,urlpre4:/(ftp:|http|ftps)/,urlpre5:/(ftp:\/|ftps:|http:|https)/,urlpre6:/(ftp:\/\/|ftps:\/|http:\/|https:)/,urlpre7:/(ftp:\/\/|ftps:\/\/|http:\/\/|https:\/)/,
-urlpre8:/(ftp:\/\/|ftps:\/\/|http:\/\/|https:\/\/)/},definitions:{i:{validator:function(a,c,b,k,h){return!0},cardinality:8,prevalidator:function(){for(var a=[],c=0;8>c;c++)a[c]=function(){var b=c;return{validator:function(a,c,f,e,d){if(d.regex["urlpre"+(b+1)]){var g=a;0<b+1-a.length&&(g=c.join("").substring(0,b+1-a.length)+""+g);a=d.regex["urlpre"+(b+1)].test(g);if(!e&&!a){f-=b;for(e=0;e<d.defaultPrefix.length;e++)c[f]=d.defaultPrefix[e],f++;for(e=0;e<g.length-1;e++)c[f]=g[e],f++;return{pos:f}}return a}return!1},
-cardinality:b}}();return a}()},r:{validator:".",cardinality:50}},insertMode:!1,autoUnmask:!1},ip:{mask:["[[x]y]z.[[x]y]z.[[x]y]z.x[yz]","[[x]y]z.[[x]y]z.[[x]y]z.[[x]y][z]"],definitions:{x:{validator:"[012]",cardinality:1,definitionSymbol:"i"},y:{validator:function(a,c,b,d,h){a=-1<b-1&&"."!=c[b-1]?c[b-1]+a:"0"+a;return/2[0-5]|[01][0-9]/.test(a)},cardinality:1,definitionSymbol:"i"},z:{validator:function(a,c,b,d,h){-1<b-1&&"."!=c[b-1]?(a=c[b-1]+a,a=-1<b-2&&"."!=c[b-2]?c[b-2]+a:"0"+a):a="00"+a;return/25[0-5]|2[0-4][0-9]|[01][0-9][0-9]/.test(a)},
-cardinality:1,definitionSymbol:"i"}}}})})(jQuery);
+/*
+Input Mask plugin extensions
+http://github.com/RobinHerbots/jquery.inputmask
+Copyright (c) 2010 -  Robin Herbots
+Licensed under the MIT license (http://www.opensource.org/licenses/mit-license.php)
+Version: 0.0.0-dev
+
+Optional extensions on the jquery.inputmask base
+*/
+(function(factory) {
+		if (typeof define === "function" && define.amd) {
+			define(["inputmask.dependencyLib", "inputmask"], factory);
+		} else if (typeof exports === "object") {
+			module.exports = factory(require("./inputmask.dependencyLib.jquery"), require("./inputmask"));
+		} else {
+			factory(jQuery, window.Inputmask);
+		}
+	}
+	(function($, Inputmask) {
+		//extra definitions
+		Inputmask.extendDefinitions({
+			"A": {
+				validator: "[A-Za-z\u0410-\u044F\u0401\u0451\u00C0-\u00FF\u00B5]",
+				cardinality: 1,
+				casing: "upper" //auto uppercasing
+			},
+			"&": { //alfanumeric uppercasing
+				validator: "[0-9A-Za-z\u0410-\u044F\u0401\u0451\u00C0-\u00FF\u00B5]",
+				cardinality: 1,
+				casing: "upper"
+			},
+			"#": { //hexadecimal
+				validator: "[0-9A-Fa-f]",
+				cardinality: 1,
+				casing: "upper"
+			}
+		});
+		Inputmask.extendAliases({
+			"url": {
+				mask: "ir",
+				placeholder: "",
+				separator: "",
+				defaultPrefix: "http://",
+				regex: {
+					urlpre1: new RegExp("[fh]"),
+					urlpre2: new RegExp("(ft|ht)"),
+					urlpre3: new RegExp("(ftp|htt)"),
+					urlpre4: new RegExp("(ftp:|http|ftps)"),
+					urlpre5: new RegExp("(ftp:/|ftps:|http:|https)"),
+					urlpre6: new RegExp("(ftp://|ftps:/|http:/|https:)"),
+					urlpre7: new RegExp("(ftp://|ftps://|http://|https:/)"),
+					urlpre8: new RegExp("(ftp://|ftps://|http://|https://)")
+				},
+				definitions: {
+					"i": {
+						validator: function(chrs, maskset, pos, strict, opts) {
+							return true;
+						},
+						cardinality: 8,
+						prevalidator: (function() {
+							var result = [],
+								prefixLimit = 8;
+							for (var i = 0; i < prefixLimit; i++) {
+								result[i] = (function() {
+									var j = i;
+									return {
+										validator: function(chrs, maskset, pos, strict, opts) {
+											if (opts.regex["urlpre" + (j + 1)]) {
+												var tmp = chrs,
+													k;
+												if (((j + 1) - chrs.length) > 0) {
+													tmp = maskset.buffer.join("").substring(0, ((j + 1) - chrs.length)) + "" + tmp;
+												}
+												var isValid = opts.regex["urlpre" + (j + 1)].test(tmp);
+												if (!strict && !isValid) {
+													pos = pos - j;
+													for (k = 0; k < opts.defaultPrefix.length; k++) {
+														maskset.buffer[pos] = opts.defaultPrefix[k];
+														pos++;
+													}
+													for (k = 0; k < tmp.length - 1; k++) {
+														maskset.buffer[pos] = tmp[k];
+														pos++;
+													}
+													return {
+														"pos": pos
+													};
+												}
+												return isValid;
+											} else {
+												return false;
+											}
+										},
+										cardinality: j
+									};
+								})();
+							}
+							return result;
+						})()
+					},
+					"r": {
+						validator: ".",
+						cardinality: 50
+					}
+				},
+				insertMode: false,
+				autoUnmask: false
+			},
+			"ip": { //ip-address mask
+				mask: "i[i[i]].i[i[i]].i[i[i]].i[i[i]]",
+				definitions: {
+					"i": {
+						validator: function(chrs, maskset, pos, strict, opts) {
+							if (pos - 1 > -1 && maskset.buffer[pos - 1] !== ".") {
+								chrs = maskset.buffer[pos - 1] + chrs;
+								if (pos - 2 > -1 && maskset.buffer[pos - 2] !== ".") {
+									chrs = maskset.buffer[pos - 2] + chrs;
+								} else chrs = "0" + chrs;
+							} else chrs = "00" + chrs;
+							return new RegExp("25[0-5]|2[0-4][0-9]|[01][0-9][0-9]").test(chrs);
+						},
+						cardinality: 1
+					}
+				},
+				onUnMask: function(maskedValue, unmaskedValue, opts) {
+					return maskedValue;
+				}
+			},
+			"email": {
+				mask: "*{1,64}[.*{1,64}][.*{1,64}][.*{1,64}]@*{1,64}[.*{2,64}][.*{2,6}][.*{1,2}]",
+				greedy: false,
+				onBeforePaste: function(pastedValue, opts) {
+					pastedValue = pastedValue.toLowerCase();
+					return pastedValue.replace("mailto:", "");
+				},
+				definitions: {
+					"*": {
+						validator: "[0-9A-Za-z!#$%&'*+/=?^_`{|}~\-]",
+						cardinality: 1,
+						casing: "lower"
+					}
+				},
+				onUnMask: function(maskedValue, unmaskedValue, opts) {
+					return maskedValue;
+				}
+			},
+			"mac": {
+				mask: "##:##:##:##:##:##"
+			}
+		});
+		return Inputmask;
+	}));
+
