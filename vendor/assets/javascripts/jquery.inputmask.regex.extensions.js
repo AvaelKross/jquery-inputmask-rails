@@ -1,5 +1,213 @@
-(function(n){n.extend(n.inputmask.defaults.aliases,{Regex:{mask:"r",greedy:!1,repeat:"*",regex:null,regexTokens:null,tokenizer:/\[\^?]?(?:[^\\\]]+|\\[\S\s]?)*]?|\\(?:0(?:[0-3][0-7]{0,2}|[4-7][0-7]?)?|[1-9][0-9]*|x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|c[A-Za-z]|[\S\s]?)|\((?:\?[:=!]?)?|(?:[?*+]|\{[0-9]+(?:,[0-9]*)?\})\??|[^.?*+^${[()|\\]+|./g,quantifierFilter:/[0-9]+[^,]/,definitions:{r:{validator:function(l,p,n,r,h){function g(d,b){this.matches=[];this.isGroup=d||!1;this.isQuantifier=b||!1;this.quantifier=
-{min:1,max:1};this.repeaterPart=void 0}function t(){var d=new g,b,a=[];for(h.regexTokens=[];b=h.tokenizer.exec(h.regex);)switch(b=b[0],b.charAt(0)){case "(":a.push(new g(!0));break;case ")":var e=a.pop();0<a.length?a[a.length-1].matches.push(e):d.matches.push(e);break;case "{":case "+":case "*":var c=new g(!1,!0);b=b.replace(/[{}]/g,"");e=b.split(",");b=isNaN(e[0])?e[0]:parseInt(e[0]);e=1==e.length?b:isNaN(e[1])?e[1]:parseInt(e[1]);c.quantifier={min:b,max:e};if(0<a.length){var f=a[a.length-1].matches;
-b=f.pop();b.isGroup||(e=new g(!0),e.matches.push(b),b=e);f.push(b);f.push(c)}else b=d.matches.pop(),b.isGroup||(e=new g(!0),e.matches.push(b),b=e),d.matches.push(b),d.matches.push(c);break;default:0<a.length?a[a.length-1].matches.push(b):d.matches.push(b)}0<d.matches.length&&h.regexTokens.push(d)}function m(g,b){var a=!1;b&&(d+="(",q++);for(var e=0;e<g.matches.length;e++){var c=g.matches[e];if(!0==c.isGroup)a=m(c,!0);else if(!0==c.isQuantifier){var f=g.matches.indexOf(c),f=g.matches[f-1],h=d;if(isNaN(c.quantifier.max)){for(;c.repeaterPart&&
-c.repeaterPart!=d&&c.repeaterPart.length>d.length&&!(a=m(f,!0)););(a=a||m(f,!0))&&(c.repeaterPart=d);d=h+c.quantifier.max}else{for(var k=0,l=c.quantifier.max-1;k<l&&!(a=m(f,!0));k++);d=h+"{"+c.quantifier.min+","+c.quantifier.max+"}"}}else if(void 0!=c.matches)for(f=0;f<c.length&&!(a=m(c[f],b));f++);else{if("["==c[0]){a=d;a+=c;for(k=0;k<q;k++)a+=")";a=RegExp("^("+a+")$");a=a.test(s)}else for(f=0,h=c.length;f<h;f++)if("\\"!=c[f]){a=d;a+=c.substr(0,f+1);a=a.replace(/\|$/,"");for(k=0;k<q;k++)a+=")";a=
-RegExp("^("+a+")$");if(a=a.test(s))break}d+=c}if(a)break}b&&(d+=")",q--);return a}null==h.regexTokens&&t();r=p.slice();var d="";p=!1;var q=0;r.splice(n,0,l);var s=r.join("");for(l=0;l<h.regexTokens.length&&!(g=h.regexTokens[l],p=m(g,g.isGroup));l++);return p},cardinality:1}}}})})(jQuery);
+/*
+Input Mask plugin extensions
+http://github.com/RobinHerbots/jquery.inputmask
+Copyright (c) 2010 -  Robin Herbots
+Licensed under the MIT license (http://www.opensource.org/licenses/mit-license.php)
+Version: 0.0.0-dev
+
+Regex extensions on the jquery.inputmask base
+Allows for using regular expressions as a mask
+*/
+(function(factory) {
+		if (typeof define === "function" && define.amd) {
+			define(["inputmask.dependencyLib", "inputmask"], factory);
+		} else if (typeof exports === "object") {
+			module.exports = factory(require("./inputmask.dependencyLib.jquery"), require("./inputmask"));
+		} else {
+			factory(jQuery, window.Inputmask);
+		}
+	}
+	(function($, Inputmask) {
+	Inputmask.extendAliases({ // $(selector).inputmask("Regex", { regex: "[0-9]*"}
+		"Regex": {
+			mask: "r",
+			greedy: false,
+			repeat: "*",
+			regex: null,
+			regexTokens: null,
+			//Thx to https://github.com/slevithan/regex-colorizer for the tokenizer regex
+			tokenizer: /\[\^?]?(?:[^\\\]]+|\\[\S\s]?)*]?|\\(?:0(?:[0-3][0-7]{0,2}|[4-7][0-7]?)?|[1-9][0-9]*|x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|c[A-Za-z]|[\S\s]?)|\((?:\?[:=!]?)?|(?:[?*+]|\{[0-9]+(?:,[0-9]*)?\})\??|[^.?*+^${[()|\\]+|./g,
+			quantifierFilter: /[0-9]+[^,]/,
+			isComplete: function(buffer, opts) {
+				return new RegExp(opts.regex).test(buffer.join(""));
+			},
+			definitions: {
+				"r": {
+					validator: function(chrs, maskset, pos, strict, opts) {
+						var cbuffer = maskset.buffer.slice(),
+							regexPart = "",
+							isValid = false,
+							openGroupCount = 0,
+							groupToken;
+
+						function RegexToken(isGroup, isQuantifier) {
+							this.matches = [];
+							this.isGroup = isGroup || false;
+							this.isQuantifier = isQuantifier || false;
+							this.quantifier = {
+								min: 1,
+								max: 1
+							};
+							this.repeaterPart = undefined;
+						}
+
+						function analyseRegex() {
+							var currentToken = new RegexToken(),
+								match, m, opengroups = [];
+
+							opts.regexTokens = [];
+
+							// The tokenizer regex does most of the tokenization grunt work
+							while (match = opts.tokenizer.exec(opts.regex)) {
+								m = match[0];
+								switch (m.charAt(0)) {
+									case "(": // Group opening
+										opengroups.push(new RegexToken(true));
+										break;
+									case ")": // Group closing
+										groupToken = opengroups.pop();
+										if (opengroups.length > 0)
+											opengroups[opengroups.length - 1].matches.push(groupToken);
+										else
+											currentToken.matches.push(groupToken);
+
+										break;
+									case "{":
+									case "+":
+									case "*": //Quantifier
+										var quantifierToken = new RegexToken(false, true);
+										m = m.replace(/[{}]/g, "");
+										var mq = m.split(","),
+											mq0 = isNaN(mq[0]) ? mq[0] : parseInt(mq[0]),
+											mq1 = mq.length === 1 ? mq0 : (isNaN(mq[1]) ? mq[1] : parseInt(mq[1]));
+										quantifierToken.quantifier = {
+											min: mq0,
+											max: mq1
+										};
+										if (opengroups.length > 0) {
+											var matches = opengroups[opengroups.length - 1].matches;
+											match = matches.pop();
+											if (!match.isGroup) {
+												groupToken = new RegexToken(true);
+												groupToken.matches.push(match);
+												match = groupToken;
+											}
+											matches.push(match);
+											matches.push(quantifierToken);
+										} else {
+											match = currentToken.matches.pop();
+											if (!match.isGroup) {
+												groupToken = new RegexToken(true);
+												groupToken.matches.push(match);
+												match = groupToken;
+											}
+											currentToken.matches.push(match);
+											currentToken.matches.push(quantifierToken);
+										}
+										break;
+									default:
+										if (opengroups.length > 0) {
+											opengroups[opengroups.length - 1].matches.push(m);
+										} else {
+											currentToken.matches.push(m);
+										}
+										break;
+								}
+							}
+
+							if (currentToken.matches.length > 0)
+								opts.regexTokens.push(currentToken);
+						}
+
+						function validateRegexToken(token, fromGroup) {
+							var isvalid = false;
+							if (fromGroup) {
+								regexPart += "(";
+								openGroupCount++;
+							}
+							for (var mndx = 0; mndx < token.matches.length; mndx++) {
+								var matchToken = token.matches[mndx];
+								if (matchToken.isGroup === true) {
+									isvalid = validateRegexToken(matchToken, true);
+								} else if (matchToken.isQuantifier === true) {
+									var crrntndx = $.inArray(matchToken, token.matches),
+										matchGroup = token.matches[crrntndx - 1];
+									var regexPartBak = regexPart;
+									if (isNaN(matchToken.quantifier.max)) {
+										while (matchToken.repeaterPart && matchToken.repeaterPart !== regexPart && matchToken.repeaterPart.length > regexPart.length) {
+											isvalid = validateRegexToken(matchGroup, true);
+											if (isvalid) break;
+										}
+										isvalid = isvalid || validateRegexToken(matchGroup, true);
+										if (isvalid) matchToken.repeaterPart = regexPart;
+										regexPart = regexPartBak + matchToken.quantifier.max;
+									} else {
+										for (var i = 0, qm = matchToken.quantifier.max - 1; i < qm; i++) {
+											isvalid = validateRegexToken(matchGroup, true);
+											if (isvalid) break;
+										}
+										regexPart = regexPartBak + "{" + matchToken.quantifier.min + "," + matchToken.quantifier.max + "}";
+									}
+								} else if (matchToken.matches !== undefined) {
+									for (var k = 0; k < matchToken.length; k++) {
+										isvalid = validateRegexToken(matchToken[k], fromGroup);
+										if (isvalid) break;
+									}
+								} else {
+									var testExp;
+									if (matchToken.charAt(0) == "[") {
+										testExp = regexPart;
+										testExp += matchToken;
+										for (var j = 0; j < openGroupCount; j++) {
+											testExp += ")";
+										}
+										var exp = new RegExp("^(" + testExp + ")$");
+										isvalid = exp.test(bufferStr);
+									} else {
+										for (var l = 0, tl = matchToken.length; l < tl; l++) {
+											if (matchToken.charAt(l) === "\\") continue;
+											testExp = regexPart;
+											testExp += matchToken.substr(0, l + 1);
+											testExp = testExp.replace(/\|$/, "");
+											for (var j = 0; j < openGroupCount; j++) {
+												testExp += ")";
+											}
+											var exp = new RegExp("^(" + testExp + ")$");
+											isvalid = exp.test(bufferStr);
+											if (isvalid) break;
+										}
+									}
+									regexPart += matchToken;
+								}
+								if (isvalid) break;
+							}
+
+							if (fromGroup) {
+								regexPart += ")";
+								openGroupCount--;
+							}
+
+							return isvalid;
+						}
+
+						if (opts.regexTokens === null)
+							analyseRegex();
+
+
+						cbuffer.splice(pos, 0, chrs);
+						var bufferStr = cbuffer.join("");
+						for (var i = 0; i < opts.regexTokens.length; i++) {
+							var regexToken = opts.regexTokens[i];
+							isValid = validateRegexToken(regexToken, regexToken.isGroup);
+							if (isValid) break;
+						}
+
+						return isValid;
+					},
+					cardinality: 1
+				}
+			}
+		}
+	});
+	return Inputmask;
+}));
