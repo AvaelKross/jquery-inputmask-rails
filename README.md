@@ -15,10 +15,15 @@ And then execute:
 
 Add the following to your `app/assets/javascripts/application.js`:
 
+    //= require inputmask
+    //= require inputmask.extensions
+    //= require inputmask.???.extensions
     //= require jquery.inputmask
-    //= require jquery.inputmask.extensions
-    //= require jquery.inputmask.numeric.extensions
-    //= require jquery.inputmask.date.extensions
+
+or with the bundled version
+
+    //= require jquery.inputmask.bundle
+
     
 ## Plugin Documentation
 
