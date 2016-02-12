@@ -7,7 +7,7 @@
 
 Add this line to your application's Gemfile:
 
-    gem 'jquery-inputmask-rails'
+    gem 'jquery-inputmask-rails', :git => 'git@github.com:Sivard/jquery-inputmask-rails.git'
 
 And then execute:
 
