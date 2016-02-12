@@ -1,5 +1,7 @@
 # Jquery::Inputmask::Rails
 
+## Version 3.2.7
+
 
 ## Installation
 
